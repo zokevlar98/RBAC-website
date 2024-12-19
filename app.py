@@ -346,5 +346,76 @@ def check_files():
     
     return jsonify(status)
 
+@app.route('/profile')
+@login_required
+def profile():
+    return render_template('profile.html')
+
+@app.route('/update_profile', methods=['POST'])
+@login_required
+def update_profile():
+    if request.method == 'POST':
+        username = request.form.get('name')
+        email = request.form.get('email')
+        
+        if username:
+            # Check if username already exists for another user
+            existing_user = User.query.filter(
+                User.username == username, 
+                User.id != current_user.id
+            ).first()
+            if existing_user:
+                flash('Username already exists', 'error')
+                return redirect(url_for('profile'))
+            current_user.username = username
+        
+        if email:
+            # Check if email already exists for another user
+            existing_user = User.query.filter(
+                User.email == email, 
+                User.id != current_user.id
+            ).first()
+            if existing_user:
+                flash('Email already exists', 'error')
+                return redirect(url_for('profile'))
+            current_user.email = email
+        
+        try:
+            db.session.commit()
+            flash('Profile updated successfully', 'success')
+        except Exception as e:
+            db.session.rollback()
+            flash('Error updating profile', 'error')
+            print(f"Error updating profile: {str(e)}")
+        
+        return redirect(url_for('profile'))
+
+@app.route('/change_password', methods=['POST'])
+@login_required
+def change_password():
+    if request.method == 'POST':
+        current_password = request.form.get('current_password')
+        new_password = request.form.get('new_password')
+        confirm_password = request.form.get('confirm_password')
+        
+        if not current_user.check_password(current_password):
+            flash('Current password is incorrect', 'error')
+            return redirect(url_for('profile'))
+        
+        if new_password != confirm_password:
+            flash('New passwords do not match', 'error')
+            return redirect(url_for('profile'))
+        
+        try:
+            current_user.set_password(new_password)
+            db.session.commit()
+            flash('Password changed successfully', 'success')
+        except Exception as e:
+            db.session.rollback()
+            flash('Error changing password', 'error')
+            print(f"Error changing password: {str(e)}")
+        
+        return redirect(url_for('profile'))
+
 if __name__ == '__main__':
     app.run(debug=True)
